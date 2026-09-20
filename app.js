@@ -12,12 +12,14 @@
                   bal: { Offense: 1, Utility: 1, Defense: 1, Resource: .25, Other: .25 },
                   def: { Offense: .25, Utility: .25, Defense: 1, Resource: 1, Other: .25 } };
   const MAX_SKILLS = 10;
+  // The plugin refuses a store without these (presets.cpp reads them with .at()).
+  const DEFAULT_SETTINGS = { mode: 0, priorities: [0, 1, 2, 3], showOverlay: true, showSkillIcons: true, showStatLabels: true, visualStyle: 0, iconOpacityScale: 1.0 };
 
   const S = {
     build: 'TW', cls: 3, tab: 1, view: 'live', cmp: '', search: '', auto: true,
     gen: { tabs: [1, 2, 3, 4], points: 315, level: '', skills: [], cat: QUICK.dps, eff: {} },
     live: { nodes: {}, res: null }, presets: [], nextId: 1,
-    file: { name: '', data: null, cid: '', chars: [] },
+    file: { name: '', settings: null, cid: '', chars: [] },
   };
   const memo = {};
   const build = (b = S.build) => DV.builds[b];
@@ -135,7 +137,8 @@
     else if (t.id === 'auto') { S.auto = t.checked; if (S.auto) update(true); }
     else if (t.id === 'cls') setBuildClass(S.build, +t.value);
     else if (t.id === 'cmp') { S.cmp = t.value; render(); }
-    else if (t.id === 'upload') readFile(t.files[0]);
+    else if (t.id === 'upload') { readFile(t.files[0], false); t.value = ''; }
+    else if (t.id === 'merge') { readFile(t.files[0], true); t.value = ''; }
     else if (t.id === 'cidSel') { S.file.cid = t.value; $('cid').value = t.value; S.presets.forEach(p => p.char && (p.include = true)); render(); }
   });
   document.addEventListener('input', e => {
@@ -159,7 +162,8 @@
     else if (d.load) { loadParams(S.presets.find(x => x.id === d.load)); }
     else if (d.k) { edit(+d.k); }
     else if (t.id === 'btnUpload') $('upload').click();
-    else if (t.id === 'btnNew') { S.file = { name: '', data: null, cid: $('cid').value.trim(), chars: [] }; S.presets = S.presets.filter(p => !p.char); render(); }
+    else if (t.id === 'btnMerge') $('merge').click();
+    else if (t.id === 'btnNew') { S.file = { name: '', settings: null, cid: $('cid').value.trim(), chars: [] }; S.presets = S.presets.filter(p => !p.char); render(); }
     else if (t.id === 'btnSave') savePreset();
     else if (t.id === 'btnDownload') download();
     else if (t.id === 'regen') { regen(); render(); }
@@ -193,30 +197,38 @@
   }
 
   /* ---- file in / out ------------------------------------------------------------ */
-  function readFile(f) {
+  function readFile(f, merge) {
     if (!f) return;
     f.text().then(txt => {
       let d; try { d = JSON.parse(txt); } catch (e) { alert('Not valid JSON: ' + e.message); return; }
       if (!Array.isArray(d.characters)) { alert('No "characters" list: not a daevanion presets.json'); return; }
-      S.presets = S.presets.filter(p => !p.char);
-      S.file = { name: f.name, data: d, cid: d.characters[0] ? String(d.characters[0].character_id) : '', chars: d.characters.map(c => String(c.character_id)) };
-      for (const c of d.characters) for (const p of c.presets || [])
-        addPreset({ name: p.name, build: null, cls: null, nodes: setsFromArray(p.nodes || []), src: 'file', char: String(c.character_id) });
-      S.presets.forEach(p => { if (p.char) { p.build = S.build; p.cls = S.cls; } });
+      if (!merge) { S.presets = S.presets.filter(p => !p.char); S.file = { name: f.name, settings: d.settings || null, cid: '', chars: [] }; }
+      else {
+        if ($('mergeSet').checked && d.settings) S.file.settings = d.settings;
+        S.file.name = (S.file.name ? S.file.name + ' + ' : '') + f.name;
+      }
+      for (const c of d.characters) {
+        const id = String(c.character_id);
+        if (!S.file.chars.includes(id)) S.file.chars.push(id);
+        for (const p of c.presets || [])
+          addPreset({ name: p.name, build: S.build, cls: S.cls, nodes: setsFromArray(p.nodes || []), src: merge ? 'merged' : 'file', char: id });
+      }
+      if (!S.file.cid && S.file.chars[0]) S.file.cid = S.file.chars[0];
       $('cid').value = S.file.cid; render();
     });
   }
   function outputJson() {
-    const d = S.file.data ? JSON.parse(JSON.stringify(S.file.data)) : { characters: [], version: 1 };
-    const cid = S.file.cid || '0', idv = /^\d+$/.test(cid) && cid.length < 16 ? +cid : cid;
-    let entry = d.characters.find(c => String(c.character_id) === cid);
-    if (!entry) { entry = { character_id: idv, presets: [] }; d.characters.push(entry); }
-    const seen = new Set();
-    entry.presets = shown().filter(p => p.include).map(p => {
-      let n = p.name, i = 2; while (seen.has(n)) n = `${p.name} (${i++})`; seen.add(n);
-      return { name: n, nodes: arrayFromSets(p.nodes) };
+    const cid = String(S.file.cid || '0');           // the plugin reads character_id as a string
+    const ids = [...new Set([...S.file.chars, cid])];
+    const characters = ids.map(id => {
+      const seen = new Set();
+      const presets = S.presets.filter(p => p.include && (p.char ? p.char === id : id === cid)).map(p => {
+        let n = p.name, i = 2; while (seen.has(n)) n = `${p.name} (${i++})`; seen.add(n);
+        return { name: n, nodes: arrayFromSets(p.nodes) };
+      });
+      return { character_id: id, presets };
     });
-    return JSON.stringify(d, null, 1) + '\n';
+    return JSON.stringify({ characters, settings: S.file.settings || DEFAULT_SETTINGS, version: 1 }, null, 1) + '\n';
   }
   function download() {
     const txt = outputJson();
@@ -235,12 +247,12 @@
   const matches = (n, q) => q.split(/\s+/).every(w => nodeText(n).includes(w));
 
   function renderFile() {
-    $('fileInfo').textContent = S.file.name || 'new file';
+    $('fileInfo').textContent = (S.file.name || 'new file') + (S.file.settings ? '' : ' · default settings');
     const sel = $('cidSel'); sel.hidden = S.file.chars.length < 2;
     sel.innerHTML = S.file.chars.map(c => `<option ${c === S.file.cid ? 'selected' : ''}>${esc(c)}</option>`).join('');
     $('savePath').textContent = PATHS[S.build];
     const n = shown().filter(p => p.include).length;
-    $('dlInfo').textContent = `${n} selected` + (S.file.cid ? '' : ' · no character ID: uses 0');
+    $('dlInfo').textContent = `${n} selected` + (n > 64 ? ' · plugin limit is 64 per character!' : '') + (S.file.cid ? '' : ' · no character ID: uses 0');
   }
   function renderPresets() {
     const row = (id, p, live) => {

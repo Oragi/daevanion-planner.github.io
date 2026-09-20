@@ -4,7 +4,7 @@ All credits to Claude..
 
 Static page (no build step, no dependencies) that plans Aion 2 Daevanion boards and reads/writes the
 Daevanion plugin's `presets.json`. Open `index.html`, or publish this folder with GitHub Pages
-(this repo is served as-is by GitHub Pages).
+(Settings > Pages > deploy from branch, folder `/daevanion-planner` or copy it to `/docs`).
 
 * **TW + EU**, every class, every tab. Tabs 1-4 share one point pool; points are always an input.
 * **Generator** (live, re-plans on every change): tabs, points, level gate, skills to reach on every tab,
@@ -14,6 +14,7 @@ Daevanion plugin's `presets.json`. Open `index.html`, or publish this folder wit
 * **Presets**: upload a `presets.json` or start a new one, keep the ones you tick, download. The exact
   path to save to is always shown. Press **Reload** in the in-game Daevanion panel before replacing the
   file, otherwise the plugin rewrites it from memory.
+* **Merge…** adds another `presets.json`'s presets to what is loaded (same-name presets are kept, renamed `(2)`); tick "use its settings" to replace the loaded settings with that file's. Exports always contain the `settings` block the plugin requires (defaults for a new file) and `character_id` as a string.
 * Defaults: `TW Ranger DPS` and `TW Cleric DPS` examples (their settings load into the generator with the gear button).
 * **Board**: click a slot to add it (cheapest connection is filled in) or remove it (and whatever it
   disconnects). Clicking pauses auto-generate. Search highlights matching slots and counts hits per tab.

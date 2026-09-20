@@ -76,7 +76,7 @@ tr.tg td:first-child{color:var(--gold)}.up{color:var(--good)}.dn{color:var(--bad
   <div class="card">
     <h2>1 · Presets file</h2>
     <div class="row"><input type="file" id="upload" accept=".json,application/json" hidden>
-      <button id="btnUpload">Upload presets.json</button><button id="btnNew">New file</button><span class="dim" id="fileInfo">new file</span></div>
+      <button id="btnUpload">Upload presets.json</button><button id="btnNew">New file</button><input type="file" id="merge" accept=".json,application/json" hidden><button id="btnMerge" title="Add the presets of another presets.json to what is loaded">Merge…</button><label class="dim" title="Also replace the loaded settings with the merged file's"><input type="checkbox" id="mergeSet"> use its settings</label><span class="dim" id="fileInfo">new file</span></div>
     <div class="row"><span class="dim">Character ID</span><input id="cid" class="grow" placeholder="see plugins/daevanion/status.json"><select id="cidSel" hidden></select></div>
     <div class="dim">Save to:</div>
     <div class="mono" id="savePath"></div>
